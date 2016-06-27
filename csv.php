@@ -1,64 +1,65 @@
 <?php
-
-/* 
-    CSV Combiner Challenge.
-    Combine an array of CSV files into one CSV file, and append a new CSV 'filename' column 
-    that displays the row data's original filename on each row.
+/*
+ *
+ * A simple PHP CSV reader and writer example.
+ * Take an array of CSV files and merge their data into one CSV file.
+ * Append a new 'filename' column to each row of the new CSV file.
+ *
+ *
 */
 
-    // List of the CSV files to combine into one.
-    $array_of_files = array(
-        'docs/clothing.csv',
-        'docs/accessories.csv',
-        'docs/household_cleaners.csv'
-    );
+// Array of CSV files to combine into one.
+$array_of_files = array(
+    'docs/clothing.csv',
+    'docs/accessories.csv',
+    'docs/household_cleaners.csv'
+);
 
-    // Function combines list of CSV files into filename list in second parameter. 
-    function csvCombiner(array $files, $result) {
-        if(!is_array($files)) {
-            echo 'The first argument is not an array.';
-        }
+// New CSV file with combined data from the CSV files array.
+$newCSV = 'docs/merged.csv';
 
-        // Open up merged.csv for writing.
-        $write = fopen($result, "w+");
+// Open up merged.csv for writing.
+$write = fopen($newCSV, "w+");
 
-        // Loop through each CSV file.
-        foreach($files as $file):
-            $reader = fopen($file, 'r');
-            $line = FALSE; 
-            $header = fgetcsv($reader, 9000, ',');
+// Create the new header with 'filename' column appended.
+$header = trim(fgets(fopen($array_of_files[0], 'r')));
+$newHead = explode(',', $header);
+array_push($newHead, "filename");
 
-            // Add each line of the three files into merged.csv
-            while(($data = fgetcsv($reader, 9000, ',')) != FALSE) {
-                if (!$line){ 
-                    // Skip the first line of each CSV file.
-                    $line = TRUE; 
-                } else { 
-                    $data = str_replace(['"', '\\'], '', $data);
-                    fwrite($write, implode($data, ',') . ',' . basename($file).PHP_EOL);
-                } 
-            }
+print "<table cellpadding=\"5\">\n";
+print "<tr align=\"left\">\n";
+foreach($newHead as $value) {
+	$newValue = str_replace('"', "", $value);
+	print "<th>" . $newValue . "</th>\n";
+}
+print "</tr>\n";
 
-            // Print out the results.
-            rewind($write);
-            $output = stream_get_contents($write);
-            echo $output;
+// Loop through the CSV files array.
+foreach($array_of_files as $file) {
+	$read = fopen($file, 'r') or die("Can't open the array of CSV files."); // Open each file up for reading.
+	$firstline = fgetcsv($read);
+	$fname = trim(basename($file).PHP_EOL); // Assign the file names to a variable.
 
-            fclose($reader);
-            unset($reader);
-        endforeach;
+	// Print all of the rows from the CSV files array into one table.
+	while(($csv_line = fgetcsv($read)) !== FALSE) {
+		array_push($csv_line, $fname . "\n"); // Append the file name of each row into new 'filename' column.
+		fwrite($write, implode($csv_line, ',')); // Write the combined data to the merged.csv file.
 
-        // Add the header column values to the first line only of the new CSV file. (merged.csv)
-        array_push($header, "filename");
-        $newHead = implode(', ', $header) . "\n";
-        $newHead .= file_get_contents($result);
-        file_put_contents($result, $newHead);
+		print "<tr>\n";
+		for ($i = 0, $j = count($csv_line); $i < $j; $i++) {
+			print "<td>" . stripslashes(htmlentities($csv_line[$i])) . "</td>\n";
+		}
+		print "</tr>\n";
 
-        fclose($write);
-        unset($write);
-        echo 'Merging complete!';
-    }
+	}
+	fclose($read) or die("Can't close the array of CSV files.");
+}
+print "</table>\n";
 
-    // Call the csvCombiner function when the PHP file is run in the terminal.
-    csvCombiner($array_of_files, 'docs/merged.csv');
-?>
+// Add single comma-separated header to the merged.csv file.
+$csvHead = implode(",", $newHead) . "\n";
+$csvNoQuotes = str_replace('"', "", $csvHead);
+$csvNoQuotes .= file_get_contents($newCSV);
+file_put_contents($newCSV, $csvNoQuotes);
+
+fclose($write) or die("Can't close the write (merged.csv) file. ");
